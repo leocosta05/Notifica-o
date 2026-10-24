@@ -34,7 +34,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Web App Manifest Gerado Via Blob JS -->
-    <link rel="manifest" id="manifest-placeholder">
+    <link rel="manifest" href="./manifest.webmanifest">
 
     <!-- Meta Tags para PWA e Mobile -->
     <meta name="theme-color" content="#4f46e5">
@@ -137,6 +137,7 @@
             <span>Permissão concedida! As notificações aparecerão normalmente na barra de tarefas do seu dispositivo.</span>
         </div>
 
+        <p class="text-xs text-gray-500 dark:text-gray-400">Mantenha esta página aberta até o envio. Fechar ou recarregar cancela os agendamentos; o navegador pode atrasá-los em segundo plano.</p>
         <!-- Layout Grid: Formulário x Prévia/Ações -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -442,47 +443,8 @@
 
         // 1. Configuração do PWA (Service Worker e Manifest)
         function initPWA() {
-            const manifestData = {
-                name: "NotificaCustom PWA",
-                short_name: "Notifica",
-                start_url: "./",
-                display: "standalone",
-                background_color: "#111827",
-                theme_color: "#4f46e5",
-                icons: [
-                    {
-                        src: "https://cdn-icons-png.flaticon.com/512/3602/3602145.png",
-                        sizes: "512x512",
-                        type: "image/png",
-                        purpose: "any maskable"
-                    }
-                ]
-            };
-            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-            document.getElementById('manifest-placeholder').href = URL.createObjectURL(manifestBlob);
-
             if ('serviceWorker' in navigator) {
-                const swCode = `
-                    self.addEventListener('install', (e) => self.skipWaiting());
-                    self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-
-                    self.addEventListener('notificationclick', (event) => {
-                        event.notification.close();
-                        event.waitUntil(
-                            clients.matchAll({ type: 'window' }).then((clientList) => {
-                                for (const client of clientList) {
-                                    if (client.url && 'focus' in client) return client.focus();
-                                }
-                                if (clients.openWindow) return clients.openWindow('/');
-                            })
-                        );
-                    });
-                `;
-                const swBlob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(swBlob);
-
-                navigator.serviceWorker.register(swUrl)
-                    .then(reg => console.log('SW PWA Registrado:', reg))
+                navigator.serviceWorker.register('./sw.js')
                     .catch(err => console.warn('Erro ao registrar SW:', err));
             }
 
@@ -759,8 +721,8 @@
                 const now = new Date();
                 delayMs = targetDate.getTime() - now.getTime();
 
-                if (delayMs <= 0) {
-                    showToast("Por favor escolha um horário futuro!", "error");
+                if (!Number.isFinite(delayMs) || delayMs <= 0 || delayMs > 2147483647) {
+                    showToast("Escolha um horário futuro dentro dos próximos 24 dias.", "error");
                     return;
                 }
                 scheduledTimeText = targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
