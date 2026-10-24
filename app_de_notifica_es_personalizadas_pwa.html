@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NotificaCustom - PWA de Notificações Agendadas</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Web App Manifest Gerado Via Blob JS -->
+    <link rel="manifest" id="manifest-placeholder">
+
+    <!-- Meta Tags para PWA e Mobile -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NotificaCustom">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3602/3602145.png">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Animação para prévia da notificação */
+        .notification-bounce {
+            animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Estilização da Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-200 pb-16">
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-bell text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">NotificaCustom</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">PWA de Notificações do Sistema</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Guia de Publicação -->
+                <button id="publishGuideBtn" class="text-xs bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 hover:bg-brand-100 font-medium px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 border border-brand-500/20">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>Como Publicar</span>
+                </button>
+
+                <!-- Botão PWA Install -->
+                <button id="installPwaBtn" class="hidden text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded-lg transition items-center space-x-1 shadow-md">
+                    <i class="fa-solid fa-download"></i>
+                    <span class="hidden sm:inline">Instalar App</span>
+                </button>
+
+                <!-- Botão Toggle Tema Dark/Light -->
+                <button id="themeToggleBtn" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-4xl mx-auto px-4 pt-6 space-y-6">
+
+        <!-- Banner de Permissões -->
+        <div id="permissionCard" class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3">
+                <div class="p-2.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 md:mt-0">
+                    <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-sm text-amber-900 dark:text-amber-200">Permissão de Notificação Requerida</h3>
+                    <p class="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
+                        Para ver as notificações na barra de status do celular ou computador, ative a permissão do seu navegador.
+                    </p>
+                </div>
+            </div>
+            <button id="requestPermissionBtn" class="w-full md:w-auto shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Ativar Notificações</span>
+            </button>
+        </div>
+
+        <div id="permissionGrantedCard" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center space-x-3 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+            <i class="fa-solid fa-circle-check text-base"></i>
+            <span>Permissão concedida! As notificações aparecerão normalmente na barra de tarefas do seu dispositivo.</span>
+        </div>
+
+        <!-- Layout Grid: Formulário x Prévia/Ações -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Coluna 1: Criador de Notificação (Formulário) -->
+            <div class="lg:col-span-7 bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700/60 shadow-sm space-y-5">
+                <div class="border-b border-gray-100 dark:border-gray-700/60 pb-3">
+                    <h2 class="font-bold text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-pen-to-square text-brand-500"></i>
+                        <span>Configurar Notificação</span>
+                    </h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Monte os detalhes da notificação que será disparada no seu sistema.</p>
+                </div>
+
+                <!-- 1. Adicionar e Selecionar Imagens do Usuário -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Logotipo / Imagem ao lado da notificação
+                        </label>
+                        <span id="imageCountBadge" class="text-[10px] text-gray-400">0 salvas</span>
+                    </div>
+
+                    <!-- Botão e Área para Fazer Upload / Adicionar por URL -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <!-- Input File Upload -->
+                        <label class="flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-300">
+                            <i class="fa-solid fa-cloud-arrow-up text-brand-500"></i>
+                            <span>Enviar Imagem do Dispositivo</span>
+                            <input id="customImageInput" type="file" accept="image/*" class="hidden" />
+                        </label>
+
+                        <!-- Input URL Direct -->
+                        <div class="flex items-center space-x-1.5">
+                            <input id="customImageUrlInput" type="text" placeholder="Ou cole a URL de uma imagem..." class="w-full text-xs px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:outline-none focus:border-brand-500">
+                            <button id="addUrlBtn" class="bg-brand-600 hover:bg-brand-700 text-white p-2.5 rounded-xl text-xs transition shrink-0" title="Adicionar por Link">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Logotipos Carregados com opção de Excluir -->
+                    <div class="space-y-1.5">
+                        <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Suas imagens cadastradas (clique para escolher):</span>
+                        
+                        <div id="userLogosContainer" class="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
+                            <!-- Inserido dinamicamente via JS -->
+                        </div>
+
+                        <!-- Estado Vazio para Imagens -->
+                        <div id="emptyLogosNotice" class="p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-center text-xs text-gray-400 space-y-1">
+                            <i class="fa-regular fa-image text-lg"></i>
+                            <p>Nenhuma imagem cadastrada. Faça o upload acima para usar nas notificações.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Título -->
+                <div class="space-y-1">
+                    <label for="notifTitle" class="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Título da Notificação
+                    </label>
+                    <input type="text" id="notifTitle" value="AO VIVO" placeholder="Ex: AO VIVO, Lembrete, Urgente..." class="w-full text-sm px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition">
+                </div>
+
+                <!-- 3. Descrição / Corpo -->
+                <div class="space-y-1">
+                    <label for="notifBody" class="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Descrição (Texto exibido na Barra de Tarefas)
+                    </label>
+                    <textarea id="notifBody" rows="2" placeholder="Ex: Digite aqui a mensagem principal..." class="w-full text-sm px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition resize-none">São Paulo abre 2 gols de vantagem no clássico!</textarea>
+                </div>
+
+                <!-- 4. Opções de Agendamento -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        Quando Enviar?
+                    </label>
+
+                    <!-- Seleção de Tipo de Tempo -->
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button type="button" id="timeModeQuickBtn" class="py-2 px-3 rounded-xl border border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-300 font-medium flex items-center justify-center space-x-1.5 transition">
+                            <i class="fa-solid fa-stopwatch"></i>
+                            <span>Tempo Relativo (Timer)</span>
+                        </button>
+                        <button type="button" id="timeModeExactBtn" class="py-2 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 font-medium flex items-center justify-center space-x-1.5 transition">
+                            <i class="fa-regular fa-clock"></i>
+                            <span>Horário Exato</span>
+                        </button>
+                    </div>
+
+                    <!-- Opção 1: Quick Countdown Buttons -->
+                    <div id="quickTimeContainer" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 pt-1">
+                        <button type="button" data-seconds="0" class="time-quick-btn active-time text-xs py-2 rounded-lg border border-brand-500 bg-brand-600 text-white font-medium hover:opacity-90 transition">Agora</button>
+                        <button type="button" data-seconds="5" class="time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition">5 Seg</button>
+                        <button type="button" data-seconds="10" class="time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition">10 Seg</button>
+                        <button type="button" data-seconds="30" class="time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition">30 Seg</button>
+                        <button type="button" data-seconds="60" class="time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition">1 Min</button>
+                        <button type="button" data-seconds="300" class="time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition">5 Min</button>
+                    </div>
+
+                    <!-- Opção 2: Exact Datetime Input -->
+                    <div id="exactTimeContainer" class="hidden pt-1">
+                        <input type="datetime-local" id="exactTimeInput" class="w-full text-xs px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <!-- Botão Agendar / Enviar -->
+                <div class="pt-2">
+                    <button id="scheduleBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/25 transition active:scale-[0.99] flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span id="scheduleBtnText">Enviar Agora Mesmo</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Coluna 2: Prévia + Lista de Agendamentos -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Card de Prévia Visual -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700/60 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700/60 pb-2">
+                        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center space-x-1.5">
+                            <i class="fa-solid fa-mobile-screen"></i>
+                            <span>Prévia na Barra de Tarefas</span>
+                        </span>
+                        <span class="text-[10px] bg-brand-500/10 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-full font-medium">Sistema</span>
+                    </div>
+
+                    <!-- Notificação Mockup -->
+                    <div class="notification-bounce bg-gray-100 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-700 rounded-2xl p-3.5 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                            <div class="flex items-center space-x-1.5">
+                                <i class="fa-solid fa-bell text-brand-500 text-xs"></i>
+                                <span class="font-medium text-gray-700 dark:text-gray-300">Sistema / PWA</span>
+                            </div>
+                            <span>agora</span>
+                        </div>
+
+                        <div class="flex items-start space-x-3">
+                            <div id="previewIconWrapper" class="w-12 h-12 rounded-xl bg-white dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-center overflow-hidden">
+                                <img id="previewIcon" src="" alt="Icon Preview" class="w-full h-full object-contain hidden">
+                                <i id="previewIconPlaceholder" class="fa-regular fa-image text-gray-400 text-xl"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 id="previewTitle" class="text-sm font-bold text-gray-900 dark:text-white truncate">AO VIVO</h4>
+                                <p id="previewBody" class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mt-0.5 leading-relaxed">São Paulo abre 2 gols de vantagem no clássico!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel de Agendamentos (Fila) -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700/60 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700/60 pb-3">
+                        <h2 class="font-bold text-base flex items-center space-x-2">
+                            <i class="fa-solid fa-list-check text-brand-500"></i>
+                            <span>Fila de Notificações</span>
+                        </h2>
+                        <span id="queueBadge" class="bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 text-xs font-bold px-2.5 py-0.5 rounded-full">0</span>
+                    </div>
+
+                    <!-- Lista -->
+                    <div id="queueList" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                        <!-- Estado Vazio -->
+                        <div id="emptyQueue" class="text-center py-8 space-y-2">
+                            <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 flex items-center justify-center mx-auto text-xl">
+                                <i class="fa-regular fa-clock"></i>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Nenhuma notificação agendada.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal Como Publicar e Acessar do Celular -->
+    <div id="publishModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-left relative">
+            <button id="closePublishModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-3 border-b border-gray-100 dark:border-gray-700 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center text-xl shrink-0">
+                    <i class="fa-solid fa-globe"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base">Como Publicar Gratuitamente</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Para acessar de qualquer celular ou PC</p>
+                </div>
+            </div>
+
+            <div class="text-xs text-gray-600 dark:text-gray-300 space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                <p>Para o PWA e as Notificações funcionarem no seu celular, o site precisa ser publicado sob um endereço seguro (<strong>HTTPS</strong>). As formas mais simples e gratuitas são:</p>
+
+                <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl space-y-1 border border-gray-200 dark:border-gray-700">
+                    <h4 class="font-bold text-brand-600 dark:text-brand-400">Opção 1: Vercel ou Netlify (Recomendado)</h4>
+                    <p>1. Salve este arquivo como <code class="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded">index.html</code> no seu computador.</p>
+                    <p>2. Crie uma conta no site <a href="https://vercel.com" target="_blank" class="underline font-semibold text-brand-500">Vercel.com</a> ou <a href="https://netlify.com" target="_blank" class="underline font-semibold text-brand-500">Netlify.com</a>.</p>
+                    <p>3. Arraste e solte o arquivo na plataforma para publicar instantaneamente com um link HTTPS.</p>
+                </div>
+
+                <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl space-y-1 border border-gray-200 dark:border-gray-700">
+                    <h4 class="font-bold text-brand-600 dark:text-brand-400">Opção 2: GitHub Pages</h4>
+                    <p>1. Crie um repositório no GitHub.</p>
+                    <p>2. Envie o arquivo <code class="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded">index.html</code>.</p>
+                    <p>3. Nas configurações (Settings > Pages), ative o GitHub Pages. Seu site ficará online gratuitamente!</p>
+                </div>
+            </div>
+
+            <button id="okPublishModalBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs py-2.5 rounded-xl transition">
+                Entendi
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Guia PWA para Instalação -->
+    <div id="pwaGuideModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto text-2xl">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <h3 class="font-bold text-lg">Como instalar na tela inicial</h3>
+            <div class="text-xs text-gray-600 dark:text-gray-300 text-left space-y-2 bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl">
+                <p><strong>iOS (Safari):</strong> Toque no ícone de <strong>Compartilhar</strong> <i class="fa-solid fa-share-from-square"></i> e selecione <strong>"Adicionar à Tela de Início"</strong>.</p>
+                <p class="border-t border-gray-200 dark:border-gray-800 pt-2"><strong>Android (Chrome):</strong> Toque no menu de 3 pontos <i class="fa-solid fa-ellipsis-vertical"></i> e escolha <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</p>
+            </div>
+            <button id="closePwaModalBtn" class="w-full bg-gray-200 dark:bg-gray-700 font-semibold text-xs py-2.5 rounded-xl text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                Entendi
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Flutuante -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-gray-900 text-white dark:bg-white dark:text-gray-900 px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">Ação realizada!</span>
+    </div>
+
+    <!-- JavaScript Principal com Lógica de Gerenciamento de Imagens e PWA -->
+    <script>
+        // Armazenamento de Imagens do Usuário no LocalStorage
+        let userImages = JSON.parse(localStorage.getItem('notif_user_images') || '[]');
+        let selectedIconUrl = userImages.length > 0 ? userImages[0].url : '';
+        let selectedSeconds = 0; // 0 = Agora
+        let selectedTimeMode = 'quick'; // 'quick' | 'exact'
+        let scheduledQueue = [];
+        let deferredPwaPrompt = null;
+
+        // Elementos DOM
+        const userLogosContainer = document.getElementById('userLogosContainer');
+        const emptyLogosNotice = document.getElementById('emptyLogosNotice');
+        const imageCountBadge = document.getElementById('imageCountBadge');
+        const customImageInput = document.getElementById('customImageInput');
+        const customImageUrlInput = document.getElementById('customImageUrlInput');
+        const addUrlBtn = document.getElementById('addUrlBtn');
+
+        const notifTitle = document.getElementById('notifTitle');
+        const notifBody = document.getElementById('notifBody');
+        const previewTitle = document.getElementById('previewTitle');
+        const previewBody = document.getElementById('previewBody');
+        const previewIcon = document.getElementById('previewIcon');
+        const previewIconPlaceholder = document.getElementById('previewIconPlaceholder');
+
+        const timeModeQuickBtn = document.getElementById('timeModeQuickBtn');
+        const timeModeExactBtn = document.getElementById('timeModeExactBtn');
+        const quickTimeContainer = document.getElementById('quickTimeContainer');
+        const exactTimeContainer = document.getElementById('exactTimeContainer');
+        const exactTimeInput = document.getElementById('exactTimeInput');
+
+        const scheduleBtn = document.getElementById('scheduleBtn');
+        const scheduleBtnText = document.getElementById('scheduleBtnText');
+        const queueList = document.getElementById('queueList');
+        const emptyQueue = document.getElementById('emptyQueue');
+        const queueBadge = document.getElementById('queueBadge');
+
+        const permissionCard = document.getElementById('permissionCard');
+        const permissionGrantedCard = document.getElementById('permissionGrantedCard');
+        const requestPermissionBtn = document.getElementById('requestPermissionBtn');
+
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const installPwaBtn = document.getElementById('installPwaBtn');
+        const pwaGuideModal = document.getElementById('pwaGuideModal');
+        const closePwaModalBtn = document.getElementById('closePwaModalBtn');
+
+        const publishGuideBtn = document.getElementById('publishGuideBtn');
+        const publishModal = document.getElementById('publishModal');
+        const closePublishModalBtn = document.getElementById('closePublishModalBtn');
+        const okPublishModalBtn = document.getElementById('okPublishModalBtn');
+
+        // Inicializador
+        window.addEventListener('DOMContentLoaded', () => {
+            initPWA();
+            renderUserLogos();
+            checkNotificationPermission();
+            setupEventListeners();
+            setupExactDefaultTime();
+            updatePreview();
+        });
+
+        // 1. Configuração do PWA (Service Worker e Manifest)
+        function initPWA() {
+            const manifestData = {
+                name: "NotificaCustom PWA",
+                short_name: "Notifica",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#111827",
+                theme_color: "#4f46e5",
+                icons: [
+                    {
+                        src: "https://cdn-icons-png.flaticon.com/512/3602/3602145.png",
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            document.getElementById('manifest-placeholder').href = URL.createObjectURL(manifestBlob);
+
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+
+                    self.addEventListener('notificationclick', (event) => {
+                        event.notification.close();
+                        event.waitUntil(
+                            clients.matchAll({ type: 'window' }).then((clientList) => {
+                                for (const client of clientList) {
+                                    if (client.url && 'focus' in client) return client.focus();
+                                }
+                                if (clients.openWindow) return clients.openWindow('/');
+                            })
+                        );
+                    });
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(swBlob);
+
+                navigator.serviceWorker.register(swUrl)
+                    .then(reg => console.log('SW PWA Registrado:', reg))
+                    .catch(err => console.warn('Erro ao registrar SW:', err));
+            }
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPwaPrompt = e;
+                installPwaBtn.classList.remove('hidden');
+                installPwaBtn.classList.add('flex');
+            });
+        }
+
+        // 2. Renderizar Imagens do Usuário com opção de Seleção e Exclusão
+        function renderUserLogos() {
+            userLogosContainer.innerHTML = '';
+            imageCountBadge.textContent = `${userImages.length} salva(s)`;
+
+            if (userImages.length === 0) {
+                emptyLogosNotice.classList.remove('hidden');
+                selectedIconUrl = '';
+                updatePreviewIcon();
+                return;
+            }
+
+            emptyLogosNotice.classList.add('hidden');
+
+            // Se nenhuma estiver selecionada, seleciona a primeira da lista
+            if (!selectedIconUrl && userImages.length > 0) {
+                selectedIconUrl = userImages[0].url;
+            }
+
+            userImages.forEach((imgObj) => {
+                const isSelected = imgObj.url === selectedIconUrl;
+                const card = document.createElement('div');
+                card.className = `relative group p-2 rounded-xl border flex flex-col items-center justify-center transition cursor-pointer ${isSelected ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 ring-2 ring-brand-500/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:border-gray-300'}`;
+
+                card.onclick = () => selectLogo(imgObj.url);
+
+                card.innerHTML = `
+                    <button type="button" onclick="deleteUserImage(event, '${imgObj.id}')" class="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] shadow-md hover:bg-red-600 transition" title="Excluir Imagem">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                    <img src="${imgObj.url}" alt="Logo" class="w-10 h-10 object-contain rounded-lg bg-white dark:bg-gray-800 p-0.5 border border-gray-100 dark:border-gray-700">
+                    <span class="text-[9px] font-medium truncate w-full text-center text-gray-500 dark:text-gray-400 mt-1">${imgObj.name}</span>
+                `;
+                userLogosContainer.appendChild(card);
+            });
+
+            updatePreviewIcon();
+        }
+
+        function selectLogo(url) {
+            selectedIconUrl = url;
+            renderUserLogos();
+        }
+
+        // Excluir Imagem da Lista
+        window.deleteUserImage = function(event, id) {
+            event.stopPropagation(); // Evita selecionar ao clicar no botão de apagar
+            userImages = userImages.filter(img => img.id !== id);
+            localStorage.setItem('notif_user_images', JSON.stringify(userImages));
+            
+            // Se a imagem excluída era a selecionada atualmente
+            if (userImages.length > 0) {
+                selectedIconUrl = userImages[0].url;
+            } else {
+                selectedIconUrl = '';
+            }
+            
+            renderUserLogos();
+            showToast("Imagem excluída!");
+        };
+
+        // Adicionar nova imagem à coleção
+        function addNewImage(url, name = "Imagem") {
+            const newImg = {
+                id: 'img_' + Date.now(),
+                url: url,
+                name: name
+            };
+            userImages.unshift(newImg);
+            localStorage.setItem('notif_user_images', JSON.stringify(userImages));
+            selectedIconUrl = url;
+            renderUserLogos();
+            showToast("Nova imagem cadastrada!");
+        }
+
+        function updatePreviewIcon() {
+            if (selectedIconUrl) {
+                previewIcon.src = selectedIconUrl;
+                previewIcon.classList.remove('hidden');
+                previewIconPlaceholder.classList.add('hidden');
+            } else {
+                previewIcon.src = '';
+                previewIcon.classList.add('hidden');
+                previewIconPlaceholder.classList.remove('hidden');
+            }
+        }
+
+        // 3. Event Listeners
+        function setupEventListeners() {
+            // Upload por arquivo local
+            customImageInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 3 * 1024 * 1024) {
+                        showToast("A imagem é muito grande! Escolha uma menor que 3MB.", "warn");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        addNewImage(event.target.result, file.name.substring(0, 10));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            // Adicionar por Link (URL)
+            addUrlBtn.onclick = () => {
+                const url = customImageUrlInput.value.trim();
+                if (url) {
+                    addNewImage(url, "Link URL");
+                    customImageUrlInput.value = '';
+                } else {
+                    showToast("Insira um link de imagem válido!", "warn");
+                }
+            };
+
+            // Inputs em Tempo Real para Preview
+            notifTitle.oninput = updatePreview;
+            notifBody.oninput = updatePreview;
+
+            // Alternar Modo de Tempo
+            timeModeQuickBtn.onclick = () => {
+                selectedTimeMode = 'quick';
+                timeModeQuickBtn.className = 'py-2 px-3 rounded-xl border border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-300 font-medium flex items-center justify-center space-x-1.5 transition';
+                timeModeExactBtn.className = 'py-2 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 font-medium flex items-center justify-center space-x-1.5 transition';
+                quickTimeContainer.classList.remove('hidden');
+                exactTimeContainer.classList.add('hidden');
+                updateScheduleButtonText();
+            };
+
+            timeModeExactBtn.onclick = () => {
+                selectedTimeMode = 'exact';
+                timeModeExactBtn.className = 'py-2 px-3 rounded-xl border border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-300 font-medium flex items-center justify-center space-x-1.5 transition';
+                timeModeQuickBtn.className = 'py-2 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 font-medium flex items-center justify-center space-x-1.5 transition';
+                exactTimeContainer.classList.remove('hidden');
+                quickTimeContainer.classList.add('hidden');
+                updateScheduleButtonText();
+            };
+
+            // Botões de Tempo Rápido (0s, 5s, 10s...)
+            const quickBtns = document.querySelectorAll('.time-quick-btn');
+            quickBtns.forEach(btn => {
+                btn.onclick = () => {
+                    quickBtns.forEach(b => {
+                        b.className = 'time-quick-btn text-xs py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium hover:border-brand-500 transition';
+                    });
+                    btn.className = 'time-quick-btn active-time text-xs py-2 rounded-lg border border-brand-500 bg-brand-600 text-white font-medium hover:opacity-90 transition';
+                    selectedSeconds = parseInt(btn.dataset.seconds);
+                    updateScheduleButtonText();
+                };
+            });
+
+            requestPermissionBtn.onclick = requestNotificationPermission;
+            scheduleBtn.onclick = handleScheduleNotification;
+
+            themeToggleBtn.onclick = () => {
+                document.documentElement.classList.toggle('dark');
+            };
+
+            installPwaBtn.onclick = async () => {
+                if (deferredPwaPrompt) {
+                    deferredPwaPrompt.prompt();
+                    const { outcome } = await deferredPwaPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        showToast('PWA Instalado com Sucesso!');
+                    }
+                    deferredPwaPrompt = null;
+                    installPwaBtn.classList.add('hidden');
+                } else {
+                    pwaGuideModal.classList.remove('hidden');
+                    pwaGuideModal.classList.add('flex');
+                }
+            };
+
+            closePwaModalBtn.onclick = () => {
+                pwaGuideModal.classList.add('hidden');
+                pwaGuideModal.classList.remove('flex');
+            };
+
+            publishGuideBtn.onclick = () => {
+                publishModal.classList.remove('hidden');
+                publishModal.classList.add('flex');
+            };
+
+            closePublishModalBtn.onclick = okPublishModalBtn.onclick = () => {
+                publishModal.classList.add('hidden');
+                publishModal.classList.remove('flex');
+            };
+        }
+
+        function updatePreview() {
+            previewTitle.textContent = notifTitle.value.trim() || 'Título da Notificação';
+            previewBody.textContent = notifBody.value.trim() || 'Descrição da sua notificação...';
+        }
+
+        function setupExactDefaultTime() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 2);
+            const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            exactTimeInput.value = isoString;
+        }
+
+        function updateScheduleButtonText() {
+            if (selectedTimeMode === 'quick') {
+                if (selectedSeconds === 0) {
+                    scheduleBtnText.textContent = 'Enviar Agora Mesmo';
+                } else {
+                    scheduleBtnText.textContent = `Enviar daqui a ${selectedSeconds}s`;
+                }
+            } else {
+                scheduleBtnText.textContent = 'Agendar em Horário Exato';
+            }
+        }
+
+        // 4. Permissões de Notificação
+        function checkNotificationPermission() {
+            if (!("Notification" in window)) {
+                permissionCard.innerHTML = `
+                    <div class="text-xs text-red-500 font-medium">Este navegador não suporta a Notifications API.</div>
+                `;
+                return;
+            }
+
+            if (Notification.permission === "granted") {
+                permissionCard.classList.add('hidden');
+                permissionGrantedCard.classList.remove('hidden');
+            } else if (Notification.permission === "denied") {
+                permissionCard.classList.remove('hidden');
+                permissionCard.querySelector('h3').textContent = 'Permissão Bloqueada';
+                permissionCard.querySelector('p').textContent = 'Você bloqueou as notificações. Libere nas configurações do seu navegador.';
+                requestPermissionBtn.classList.add('hidden');
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!("Notification" in window)) return;
+
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+                permissionCard.classList.add('hidden');
+                permissionGrantedCard.classList.remove('hidden');
+                showToast("Notificações ativadas com sucesso!");
+                triggerSystemNotification("Notificação Ativada!", "Você começará a receber seus agendamentos aqui.", selectedIconUrl);
+            } else {
+                checkNotificationPermission();
+            }
+        }
+
+        // 5. Agendamento de Notificação
+        function handleScheduleNotification() {
+            const title = notifTitle.value.trim() || 'Notificação';
+            const body = notifBody.value.trim() || 'Descrição da notificação';
+            const icon = selectedIconUrl;
+
+            let delayMs = 0;
+            let scheduledTimeText = '';
+
+            if (selectedTimeMode === 'quick') {
+                delayMs = selectedSeconds * 1000;
+                scheduledTimeText = selectedSeconds === 0 ? 'Imediato' : `Em ${selectedSeconds}s`;
+            } else {
+                const targetDate = new Date(exactTimeInput.value);
+                const now = new Date();
+                delayMs = targetDate.getTime() - now.getTime();
+
+                if (delayMs <= 0) {
+                    showToast("Por favor escolha um horário futuro!", "error");
+                    return;
+                }
+                scheduledTimeText = targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            const queueItem = {
+                id: Date.now(),
+                title,
+                body,
+                icon,
+                delayMs,
+                scheduledTimeText,
+                status: 'pending',
+                timerId: null
+            };
+
+            if (delayMs === 0) {
+                triggerSystemNotification(title, body, icon);
+                queueItem.status = 'sent';
+                showToast("Notificação disparada!");
+            } else {
+                queueItem.timerId = setTimeout(() => {
+                    triggerSystemNotification(title, body, icon);
+                    queueItem.status = 'sent';
+                    renderQueueUI();
+                    showToast(`Notificação "${title}" enviada!`);
+                }, delayMs);
+
+                showToast(`Agendada para ${scheduledTimeText}!`);
+            }
+
+            scheduledQueue.unshift(queueItem);
+            renderQueueUI();
+        }
+
+        function triggerSystemNotification(title, body, icon) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                const options = {
+                    body: body,
+                    icon: icon || 'https://cdn-icons-png.flaticon.com/512/3602/3602145.png',
+                    badge: icon || 'https://cdn-icons-png.flaticon.com/512/3602/3602145.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'notif-' + Date.now(),
+                    renotify: true
+                };
+
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification(title, options);
+                    });
+                } else {
+                    try {
+                        new Notification(title, options);
+                    } catch (e) {
+                        console.error('Erro ao disparar notificação:', e);
+                    }
+                }
+            } else {
+                showToast(`${title}: ${body}`, "warn");
+            }
+        }
+
+        // 6. Gerenciador da Fila
+        function renderQueueUI() {
+            const pendingCount = scheduledQueue.filter(i => i.status === 'pending').length;
+            queueBadge.textContent = pendingCount;
+
+            if (scheduledQueue.length === 0) {
+                emptyQueue.classList.remove('hidden');
+                queueList.innerHTML = '';
+                queueList.appendChild(emptyQueue);
+                return;
+            }
+
+            emptyQueue.classList.add('hidden');
+            queueList.innerHTML = '';
+
+            scheduledQueue.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 rounded-xl border border-gray-200 dark:border-gray-700/80 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between gap-3 text-xs";
+
+                let statusBadge = '';
+                if (item.status === 'pending') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">Aguardando (${item.scheduledTimeText})</span>`;
+                } else if (item.status === 'sent') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium"><i class="fa-solid fa-check text-[10px]"></i> Enviado</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-500 font-medium">Cancelado</span>`;
+                }
+
+                const iconHtml = item.icon 
+                    ? `<img src="${item.icon}" class="w-8 h-8 rounded-lg object-contain bg-white dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700 shrink-0">`
+                    : `<div class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0"><i class="fa-regular fa-image text-gray-400"></i></div>`;
+
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3 min-w-0">
+                        ${iconHtml}
+                        <div class="min-w-0">
+                            <h5 class="font-bold text-gray-900 dark:text-white truncate">${item.title}</h5>
+                            <p class="text-gray-500 dark:text-gray-400 truncate text-[11px]">${item.body}</p>
+                            <div class="mt-1">${statusBadge}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        ${item.status === 'pending' ? `
+                            <button onclick="cancelNotification(${item.id})" class="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition" title="Cancelar Agendamento">
+                                <i class="fa-solid fa-circle-xmark text-sm"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="deleteNotification(${item.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition" title="Excluir Registro">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                    </div>
+                `;
+                queueList.appendChild(div);
+            });
+        }
+
+        window.cancelNotification = function(id) {
+            const item = scheduledQueue.find(i => i.id === id);
+            if (item && item.status === 'pending') {
+                if (item.timerId) clearTimeout(item.timerId);
+                item.status = 'cancelled';
+                renderQueueUI();
+                showToast("Notificação cancelada!");
+            }
+        };
+
+        window.deleteNotification = function(id) {
+            cancelNotification(id);
+            scheduledQueue = scheduledQueue.filter(i => i.id !== id);
+            renderQueueUI();
+        };
+
+        // Componente Toast Feedback
+        function showToast(msg, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = msg;
+
+            if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400";
+            } else if (type === "warn") {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
