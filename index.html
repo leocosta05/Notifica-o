@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NotificaCustom - PWA de Notificações Agendadas</title>
+    <title>Alertas</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -40,7 +40,7 @@
     <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Notificações">
+    <meta name="apple-mobile-web-app-title" content="Alertas">
     <link id="appleTouchIcon" sizes="180x180" rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3602/3602145.png">
 
     <style>
@@ -87,7 +87,7 @@
                     <i class="fa-solid fa-bell text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">NotificaCustom</h1>
+                    <h1 id="appDisplayName" class="font-bold text-lg leading-tight">Alertas</h1>
                     <p class="text-xs text-gray-500 dark:text-gray-400">PWA de Notificações do Sistema</p>
                 </div>
             </div>
@@ -122,6 +122,11 @@
             <p>Requer iOS/iPadOS 16.4 ou superior. Abra este site no Safari, toque em <b>Compartilhar → Adicionar à Tela de Início</b> e mantenha “Abrir como App” ativado, se aparecer. Depois abra pelo ícone instalado e toque em <b>Ativar Notificações</b>.</p>
             <p class="text-xs">O iOS usa o nome e o ícone do app instalado nas notificações. Alterar a imagem aqui não muda o ícone de uma instalação existente. Os agendamentos desta versão exigem o app aberto; envio com app fechado exige um servidor Web Push.</p>
         </aside>
+        <section class="p-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-2">
+            <label for="appNameInput" class="block text-sm font-semibold">Nome do aplicativo</label>
+            <input id="appNameInput" maxlength="40" placeholder="Ex.: Meus lembretes" class="w-full rounded-xl p-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Nome salvo neste dispositivo e sugerido na próxima instalação. O Android controla a identificação da notificação e pode manter o nome anterior até reinstalar o app. O ícone pequeno (badge) é monocromático; a imagem colorida aparece onde o sistema permitir.</p>
+        </section>
         <!-- Banner de Permissões -->
         <div id="permissionCard" class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex items-start space-x-3">
@@ -443,6 +448,7 @@
         // Inicializador
         window.addEventListener('DOMContentLoaded', () => {
             initPWA();
+            initAppName();
             updateIOSInstallNotice();
             renderUserLogos();
             checkNotificationPermission();
@@ -452,6 +458,38 @@
         });
 
         // 1. Configuração do PWA (Service Worker e Manifest)
+
+        let customManifestUrl = null;
+        function initAppName() {
+            const input = document.getElementById('appNameInput');
+            let saved = 'Alertas';
+            try { saved = localStorage.getItem('pwa_app_name') || saved; } catch (_) {}
+            const apply = () => {
+                const name = input.value.trim().slice(0, 40) || 'Alertas';
+                input.value = name;
+                document.title = name;
+                document.getElementById('appDisplayName').textContent = name;
+                document.querySelector('meta[name="apple-mobile-web-app-title"]').content = name;
+                try { localStorage.setItem('pwa_app_name', name); } catch (_) {
+                    showToast('O navegador não permitiu salvar o nome neste dispositivo.', 'warn');
+                }
+                const base = new URL('./', location.href).href;
+                const manifest = {
+                    id: base, name, short_name: name, start_url: base, scope: base,
+                    display: 'standalone', background_color: '#111827', theme_color: '#4f46e5',
+                    icons: [{src: 'https://cdn-icons-png.flaticon.com/512/3602/3602145.png',
+                        sizes: '512x512', type: 'image/png', purpose: 'any'}]
+                };
+                const previous = customManifestUrl;
+                customManifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'}));
+                document.querySelector('link[rel="manifest"]').href = customManifestUrl;
+                if (previous) URL.revokeObjectURL(previous);
+            };
+            input.value = saved;
+            apply();
+            input.addEventListener('change', apply);
+        }
+
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches ||
@@ -462,8 +500,11 @@
         }
         function initPWA() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => { serviceWorkerRegistration = registration; })
+                navigator.serviceWorker.register('./sw.js', {updateViaCache: 'none'})
+                    .then(registration => {
+                        serviceWorkerRegistration = registration;
+                        registration.update().catch(error => console.warn('Atualização do SW:', error));
+                    })
                     .catch(err => console.warn('Erro ao registrar SW:', err));
             }
 
@@ -872,8 +913,9 @@
                     body: body,
                     icon: roundedImageDataUrl,
                     badge: roundedImageDataUrl,
+                    image: roundedImageDataUrl,
                     vibrate: [200, 100, 200],
-                    tag: 'notif-' + Date.now(),
+                    tag: 'notificacao-pwa',
                     renotify: true
                 };
 
@@ -888,7 +930,26 @@
                                     timeout = setTimeout(() => reject(new Error('Service Worker indisponível')), 10000);
                                 })
                             ]);
-                            await registration.showNotification(title, options);
+                            await new Promise((resolve, reject) => {
+                                const channel = new MessageChannel();
+                                const timer = setTimeout(() => {
+                                    channel.port1.close();
+                                    reject(new Error('Sem confirmação do Service Worker'));
+                                }, 10000);
+                                channel.port1.onmessage = event => {
+                                    clearTimeout(timer);
+                                    channel.port1.close();
+                                    event.data.ok ? resolve() : reject(new Error(event.data.error || 'Falha no envio'));
+                                };
+                                try {
+                                    registration.active.postMessage(
+                                        {type: 'SHOW_NOTIFICATION', title, options}, [channel.port2]);
+                                } catch (error) {
+                                    clearTimeout(timer);
+                                    channel.port1.close();
+                                    reject(error);
+                                }
+                            });
                         } finally { clearTimeout(timeout); }
                     } else if (!isIOS) {
                         new Notification(title, options);
