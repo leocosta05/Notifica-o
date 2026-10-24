@@ -1,6 +1,6 @@
 {
-  "name": "NotificaCustom PWA",
-  "short_name": "Notifica",
+  "name": "Alertas",
+  "short_name": "Alertas",
   "id": "./",
   "start_url": "./",
   "scope": "./",
