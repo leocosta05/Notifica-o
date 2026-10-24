@@ -40,8 +40,8 @@
     <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NotificaCustom">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3602/3602145.png">
+    <meta name="apple-mobile-web-app-title" content="Notificações">
+    <link id="appleTouchIcon" sizes="180x180" rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3602/3602145.png">
 
     <style>
         #userLogosContainer img, #previewIcon, #previewIconWrapper, #queueList img {
@@ -117,6 +117,11 @@
     <!-- Main Container -->
     <main class="max-w-4xl mx-auto px-4 pt-6 space-y-6">
 
+        <aside id="iosInstallNotice" hidden class="p-4 rounded-2xl bg-brand-50 dark:bg-brand-900/30 border border-brand-500/30 text-sm space-y-2">
+            <strong>Notificações no iPhone e iPad</strong>
+            <p>Requer iOS/iPadOS 16.4 ou superior. Abra este site no Safari, toque em <b>Compartilhar → Adicionar à Tela de Início</b> e mantenha “Abrir como App” ativado, se aparecer. Depois abra pelo ícone instalado e toque em <b>Ativar Notificações</b>.</p>
+            <p class="text-xs">O iOS usa o nome e o ícone do app instalado nas notificações. Alterar a imagem aqui não muda o ícone de uma instalação existente. Os agendamentos desta versão exigem o app aberto; envio com app fechado exige um servidor Web Push.</p>
+        </aside>
         <!-- Banner de Permissões -->
         <div id="permissionCard" class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex items-start space-x-3">
@@ -438,6 +443,7 @@
         // Inicializador
         window.addEventListener('DOMContentLoaded', () => {
             initPWA();
+            updateIOSInstallNotice();
             renderUserLogos();
             checkNotificationPermission();
             setupEventListeners();
@@ -446,9 +452,18 @@
         });
 
         // 1. Configuração do PWA (Service Worker e Manifest)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches ||
+            navigator.standalone === true;
+        let serviceWorkerRegistration = null;
+        function updateIOSInstallNotice() {
+            document.getElementById('iosInstallNotice').hidden = !isIOS || isStandalone();
+        }
         function initPWA() {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js')
+                    .then(registration => { serviceWorkerRegistration = registration; })
                     .catch(err => console.warn('Erro ao registrar SW:', err));
             }
 
@@ -597,7 +612,22 @@
             }
         }
 
+        let appleIconVersion = 0;
+        async function updateAppleTouchIcon(source) {
+            const version = ++appleIconVersion;
+            const link = document.getElementById('appleTouchIcon');
+            // Data URL é uma sugestão para futuras instalações; o iOS pode preservar o ícone já instalado.
+            const fallback = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#4f46e5"/><text x="128" y="176" text-anchor="middle" font-family="sans-serif" font-size="144" fill="white">N</text></svg>');
+            try {
+                const png = await createRoundedIcon(source || fallback);
+                if (version === appleIconVersion) link.href = png;
+            } catch (error) {
+                if (version === appleIconVersion) link.href = await createRoundedIcon(fallback);
+            }
+        }
+
         function updatePreviewIcon() {
+            updateAppleTouchIcon(selectedIconUrl);
             if (selectedIconUrl) {
                 previewIcon.src = selectedIconUrl;
                 previewIcon.classList.remove('hidden');
@@ -740,7 +770,7 @@
         function checkNotificationPermission() {
             if (!("Notification" in window)) {
                 permissionCard.innerHTML = `
-                    <div class="text-xs text-red-500 font-medium">Este navegador não suporta a Notifications API.</div>
+                    <div class="text-xs text-red-500 font-medium">Notificações indisponíveis nesta janela. No iPhone (iOS 16.4+), use Safari → Compartilhar → Adicionar à Tela de Início e abra pelo ícone instalado.</div>
                 `;
                 return;
             }
@@ -757,6 +787,11 @@
         }
 
         async function requestNotificationPermission() {
+            if (isIOS && !isStandalone()) {
+                updateIOSInstallNotice();
+                showToast('Adicione à Tela de Início e abra pelo ícone para ativar notificações.', 'warn');
+                return;
+            }
             if (!("Notification" in window)) return;
 
             const permission = await Notification.requestPermission();
@@ -771,7 +806,7 @@
         }
 
         // 5. Agendamento de Notificação
-        function handleScheduleNotification() {
+        async function handleScheduleNotification() {
             const title = notifTitle.value.trim() || 'Notificação';
             const body = notifBody.value.trim() || 'Descrição da notificação';
             const icon = selectedIconUrl;
@@ -806,15 +841,16 @@
             };
 
             if (delayMs === 0) {
-                triggerSystemNotification(title, body, icon);
-                queueItem.status = 'sent';
-                showToast("Notificação disparada!");
+                const sent = await triggerSystemNotification(title, body, icon);
+                queueItem.status = sent ? 'sent' : 'failed';
+                if (sent) showToast("Notificação disparada!");
             } else {
-                queueItem.timerId = setTimeout(() => {
-                    triggerSystemNotification(title, body, icon);
-                    queueItem.status = 'sent';
+                queueItem.timerId = setTimeout(async () => {
+                    const sent = await triggerSystemNotification(title, body, icon);
+                    if (queueItem.status !== 'pending') return;
+                    queueItem.status = sent ? 'sent' : 'failed';
                     renderQueueUI();
-                    showToast(`Notificação "${title}" enviada!`);
+                    if (sent) showToast(`Notificação "${title}" enviada!`);
                 }, delayMs);
 
                 showToast(`Agendada para ${scheduledTimeText}!`);
@@ -841,19 +877,33 @@
                     renotify: true
                 };
 
-                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification(title, options);
-                    });
-                } else {
-                    try {
+                try {
+                    if ('serviceWorker' in navigator) {
+                        // ready aguarda o worker ativo inclusive na primeira abertura (sem controller).
+                        let timeout;
+                        try {
+                            const registration = await Promise.race([
+                                navigator.serviceWorker.ready,
+                                new Promise((_, reject) => {
+                                    timeout = setTimeout(() => reject(new Error('Service Worker indisponível')), 10000);
+                                })
+                            ]);
+                            await registration.showNotification(title, options);
+                        } finally { clearTimeout(timeout); }
+                    } else if (!isIOS) {
                         new Notification(title, options);
-                    } catch (e) {
-                        console.error('Erro ao disparar notificação:', e);
+                    } else {
+                        throw new Error('Service Worker necessário no iPhone');
                     }
+                    return true;
+                } catch (error) {
+                    console.error('Erro ao disparar notificação:', error);
+                    showToast('Não foi possível enviar. Reabra o app e confira a permissão de notificações.', 'error');
+                    return false;
                 }
             } else {
                 showToast(`${title}: ${body}`, "warn");
+                return false;
             }
         }
 
@@ -881,6 +931,8 @@
                     statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">Aguardando (${item.scheduledTimeText})</span>`;
                 } else if (item.status === 'sent') {
                     statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium"><i class="fa-solid fa-check text-[10px]"></i> Enviado</span>`;
+                } else if (item.status === 'failed') {
+                    statusBadge = '<span class="text-red-500 font-medium">Falha no envio</span>';
                 } else {
                     statusBadge = `<span class="px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-500 font-medium">Cancelado</span>`;
                 }
